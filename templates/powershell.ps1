@@ -58,10 +58,8 @@ function codexduck {
     }
 }
 
-# codex 默认使用订阅；cxg / cxd 是简写。
+# codex 默认使用订阅。
 function codex { codexgpt @args }
-function cxg { codexgpt @args }
-function cxd { codexduck @args }
 
 # 只检查本地配置，不联网、不显示密钥。
 function ai-status {

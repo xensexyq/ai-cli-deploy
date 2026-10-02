@@ -67,11 +67,11 @@ class DeploymentTests(unittest.TestCase):
             path.write_text(mock)
             path.chmod(0o700)
         env = dict(os.environ, PATH=str(bin_dir) + ':' + os.environ['PATH'], OPENAI_API_KEY='keep-me', ANTHROPIC_API_KEY='conflict')
-        commands = 'source "$1"; source "$1"; cxg exec "two words"; cxd exec "duck prompt"; codex --version; claude -p "a prompt"; test "$OPENAI_API_KEY" = keep-me'
+        commands = 'source "$1"; source "$1"; codexgpt exec "two words"; codexduck exec "duck prompt"; codex --version; claude -p "a prompt"; test "$OPENAI_API_KEY" = keep-me'
         result = subprocess.run(['bash', '-c', commands, 'test', str(self.rc)], env=env, text=True, capture_output=True, check=True)
         rows = [json.loads(line) for line in result.stdout.splitlines()]
         self.assertEqual(len(rows), 4)
-        # codex 与 cxg 一样始终走订阅；cxd 走 DuckCoding，且共用同一个 CODEX_HOME。
+        # codex 与 codexgpt 一样始终走订阅；codexduck 走 DuckCoding，且共用同一个 CODEX_HOME。
         for row in (rows[0], rows[2]):
             self.assertEqual(row['args'][:4], ['-c', 'model_provider="openai"', '-c', 'forced_login_method="chatgpt"'])
         self.assertEqual(rows[0]['args'][-2:], ['exec', 'two words'])
@@ -85,7 +85,10 @@ class DeploymentTests(unittest.TestCase):
         self.assertEqual(rows[3]['args'], ['-p', 'a prompt'])
         self.assertEqual(rows[3]['token'], 'test-claude')
         self.assertIsNone(rows[3]['conflict'])
-        fail = subprocess.run(['bash', '-c', 'source "$1"; unset DUCKCODING_API_KEY; cxd', 'test', str(self.rc)], env=env, capture_output=True)
+        fail = subprocess.run(['bash', '-c', 'source "$1"; unset DUCKCODING_API_KEY; codexduck', 'test', str(self.rc)], env=env, capture_output=True)
+        # 旧版本留下的 cxg / cxd 在重新加载后应被清除，且不再定义。
+        gone = subprocess.run(['bash', '-c', 'cxg() { :; }; alias cxd=true; source "$1"; ! type cxg cxd', 'test', str(self.rc)], env=env, capture_output=True)
+        self.assertEqual(gone.returncode, 0)
         self.assertEqual(fail.returncode, 1)
         self.assertFalse(fail.stdout)
 
@@ -119,9 +122,9 @@ class DeploymentTests(unittest.TestCase):
         quote = lambda text: "'" + str(text).replace("'", "''") + "'"
         command = (
             '. ' + quote(profile) + '; . ' + quote(profile) + '; '
-            'cxg exec "two words"; cxd exec "duck prompt"; '
+            'codexgpt exec "two words"; codexduck exec "duck prompt"; '
             'codex --version; claude -p "a prompt"; '
-            'cxd --fail; if ($LASTEXITCODE -ne 7) { throw "Exit status lost" }; '
+            'codexduck --fail; if ($LASTEXITCODE -ne 7) { throw "Exit status lost" }; '
             'if ($env:OPENAI_API_KEY -ne "keep-me") { throw "Environment not restored" }; '
             'if ($env:CODEX_HOME -ne "original-home") { throw "Codex home not restored" }; '
             'exit 0')
@@ -191,7 +194,7 @@ class DeploymentTests(unittest.TestCase):
         home = self.root / 'codex-home'
         home.mkdir()
         env = dict(os.environ, CODEX_HOME=str(home))
-        for command in ('cxd features list', 'cxg features list'):
+        for command in ('codexduck features list', 'codexgpt features list'):
             result = subprocess.run(['bash', '-c', 'source "$1"; ' + command, 'test', str(self.rc)], env=env, capture_output=True, text=True, timeout=60)
             self.assertEqual(result.returncode, 0, result.stderr)
 

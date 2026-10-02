@@ -196,7 +196,7 @@ def main():
     commit(plan)
     print('\n配置完成。Linux：source ~/.bashrc；PowerShell：. $PROFILE')
     print('先执行 ai-status 检查密钥是否已填写。订阅首次登录：codex login')
-    print('codex / cxg：ChatGPT 订阅；cxd：DuckCoding；claude：DuckCoding 的 Claude Code')
+    print('codex / codexgpt：ChatGPT 订阅；codexduck：DuckCoding；claude：DuckCoding 的 Claude Code')
     print('备份包含历史配置，可能包含旧密钥，请保存在个人目录。')
 
 

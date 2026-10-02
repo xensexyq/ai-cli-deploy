@@ -5,12 +5,12 @@
 | 命令 | 作用 |
 | --- | --- |
 | `codex` | Codex，使用 **ChatGPT 订阅**（浏览器登录） |
-| `cxg` / `codexgpt` | 同上，ChatGPT 订阅 |
-| `cxd` / `codexduck` | Codex，使用 **DuckCoding API**（模型由 `DUCKCODING_CODEX_MODEL` 决定，默认 `gpt-5.6-sol`） |
+| `codexgpt` | 同上，ChatGPT 订阅 |
+| `codexduck` | Codex，使用 **DuckCoding API**（模型由 `DUCKCODING_CODEX_MODEL` 决定，默认 `gpt-5.6-sol`） |
 | `claude` | Claude Code，使用 DuckCoding 的 Claude 接口 |
 | `ai-status` | 只检查本地配置：key 是否已填写、模型、接口地址（不联网、不显示密钥） |
 
-切换方式就是**换一个命令启动**：想用订阅就 `codex` / `cxg`，想用 DuckCoding 就 `cxd`，互不影响，也不需要改任何配置文件。两种方式共用同一个 Codex 目录（`~/.codex`），会话历史、技能、项目信任设置都是共享的。
+切换方式就是**换一个命令启动**：想用订阅就 `codex` / `codexgpt`，想用 DuckCoding 就 `codexduck`，互不影响，也不需要改任何配置文件。两种方式共用同一个 Codex 目录（`~/.codex`），会话历史、技能、项目信任设置都是共享的。
 
 ## 快速开始
 
@@ -50,11 +50,11 @@ irm https://raw.githubusercontent.com/xensexyq/ai-cli-deploy/main/install.ps1 | 
 ```text
 codex login        # ChatGPT 订阅：按提示在浏览器登录（无浏览器可用 codex login --device-auth）
 codex              # 订阅版
-cxd                # DuckCoding 版，无需 login
+codexduck          # DuckCoding 版，无需 login
 claude             # Claude Code
 ```
 
-参数会原样传递，例如 `cxd exec "检查当前修改"`、`claude -p "只回复 OK"`。
+参数会原样传递，例如 `codexduck exec "检查当前修改"`、`claude -p "只回复 OK"`。
 
 ## 已克隆仓库时
 
@@ -76,7 +76,7 @@ bash setup-linux.sh            # Linux
 | `--non-interactive` | `-NonInteractive` | 不提示输入 key，沿用已有值或当前环境变量 |
 | `--codex-base-url URL` | `-CodexBaseUrl URL` | DuckCoding Codex 接口，默认 `https://api.duckcoding.ai/v1` |
 | `--claude-base-url URL` | `-ClaudeBaseUrl URL` | DuckCoding Claude 接口，默认 `https://api.duckcoding.ai` |
-| `--codex-model 名称` | `-CodexModel 名称` | `cxd` 默认模型，默认 `gpt-5.6-sol` |
+| `--codex-model 名称` | `-CodexModel 名称` | `codexduck` 默认模型，默认 `gpt-5.6-sol` |
 
 远程一键安装同样支持这些参数：
 
@@ -110,12 +110,12 @@ $env:ANTHROPIC_BASE_URL = 'https://api.duckcoding.ai'
 $env:DUCKCODING_CODEX_MODEL = 'gpt-5.6-sol'
 ```
 
-Linux 执行 `source ~/.bashrc`，Windows 执行 `. $PROFILE`。临时换模型可用 `cxd --model 模型名`。
+Linux 执行 `source ~/.bashrc`，Windows 执行 `. $PROFILE`。临时换模型可用 `codexduck --model 模型名`。
 
 ## 工作原理
 
-- `codex` / `cxg`：在子进程中清除 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`CODEX_API_KEY`，并以 `-c model_provider="openai" -c forced_login_method="chatgpt"` 启动，确保走订阅登录。
-- `cxd`：同样清除上述变量，通过 `-c` 完整指定 `duckcoding` provider（地址、`wire_api = "responses"`、`env_key = "DUCKCODING_API_KEY"`、`requires_openai_auth = false`）并带上 `--model`，不依赖 `~/.codex/config.toml` 中的任何配置。
+- `codex` / `codexgpt`：在子进程中清除 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`CODEX_API_KEY`，并以 `-c model_provider="openai" -c forced_login_method="chatgpt"` 启动，确保走订阅登录。
+- `codexduck`：同样清除上述变量，通过 `-c` 完整指定 `duckcoding` provider（地址、`wire_api = "responses"`、`env_key = "DUCKCODING_API_KEY"`、`requires_openai_auth = false`）并带上 `--model`，不依赖 `~/.codex/config.toml` 中的任何配置。
 - `claude`：启动配置中导出 `ANTHROPIC_AUTH_TOKEN` 与 `ANTHROPIC_BASE_URL`，并清除冲突的 `ANTHROPIC_API_KEY`，`claude` 直接调用原程序。
 - 只修改当前 shell 函数所启动的子进程环境，不影响当前终端；IDE 插件和桌面应用不经过这些函数。
 
@@ -129,11 +129,11 @@ Linux 执行 `source ~/.bashrc`，Windows 执行 `. $PROFILE`。临时换模型�
 
 | 现象 | 处理 |
 | --- | --- |
-| `cxg` / `cxd` 不存在 | Linux：`source ~/.bashrc`；Windows：确认在 PowerShell 7 中，执行 `. $PROFILE` |
+| `codexgpt` / `codexduck` 不存在 | Linux：`source ~/.bashrc`；Windows：确认在 PowerShell 7 中，执行 `. $PROFILE` |
 | 找不到 codex / claude | 重开终端；检查 npm 全局目录是否在 PATH |
 | 订阅提示登录 | 执行 `codex login`，确认账号有 Codex 权限 |
 | DuckCoding 401/403 | 检查 key、余额/权限和接口地址 |
-| 模型不存在 | 改 `DUCKCODING_CODEX_MODEL`，或 `cxd --model 模型名` |
+| 模型不存在 | 改 `DUCKCODING_CODEX_MODEL`，或 `codexduck --model 模型名` |
 | Claude 仍走旧路由 | 检查项目内 `.claude/settings.json`、`.claude/settings.local.json` |
 | PowerShell profile 没加载 | 确认不是 `-NoProfile` 启动；VS Code 的 PowerShell 主机使用单独的 `$PROFILE`，需在其中再运行一次部署 |
 | 重复部署后自定义内容丢失 | AI CLI 区块会被重建，自定义内容请放在区块之外 |
@@ -144,7 +144,7 @@ Linux 执行 `source ~/.bashrc`，Windows 执行 `. $PROFILE`。临时换模型�
 python3 -m unittest discover -s tests -v
 ```
 
-测试使用临时目录和假密钥，覆盖配置迁移、特殊字符、重复部署、命令路由与参数传递、认证文件保留、非法配置拒绝、失败回滚；已安装 Codex 时会用真实 CLI 的 `features list` 校验 `cxd` / `cxg` 生成的配置（不请求模型服务）。PATH 中有 `pwsh`（或设置 `AI_CLI_TEST_PWSH`）时还会测试 PowerShell 版函数。
+测试使用临时目录和假密钥，覆盖配置迁移、特殊字符、重复部署、命令路由与参数传递、认证文件保留、非法配置拒绝、失败回滚；已安装 Codex 时会用真实 CLI 的 `features list` 校验 `codexduck` / `codexgpt` 生成的配置（不请求模型服务）。PATH 中有 `pwsh`（或设置 `AI_CLI_TEST_PWSH`）时还会测试 PowerShell 版函数。
 
 已在 Linux + PowerShell 7.6 下全部通过。Windows 原生安装、浏览器登录和 DuckCoding 真实请求需要在目标机器上验收。
 

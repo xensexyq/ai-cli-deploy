@@ -26,10 +26,8 @@ codexduck() (
         --model "${DUCKCODING_CODEX_MODEL:-gpt-5.6-sol}" "$@"
 )
 
-# codex 默认使用订阅；cxg / cxd 是简写。
+# codex 默认使用订阅。
 codex() { codexgpt "$@"; }
-cxg() { codexgpt "$@"; }
-cxd() { codexduck "$@"; }
 
 # 只检查本地配置，不联网、不显示密钥。
 ai-status() {
