@@ -67,21 +67,24 @@ class DeploymentTests(unittest.TestCase):
             path.write_text(mock)
             path.chmod(0o700)
         env = dict(os.environ, PATH=str(bin_dir) + ':' + os.environ['PATH'], OPENAI_API_KEY='keep-me', ANTHROPIC_API_KEY='conflict')
-        commands = 'source "$1"; source "$1"; cxg exec "two words"; cxd exec "duck prompt"; codex-use duck >/dev/null; codex --version; claude -p "a prompt"; test "$OPENAI_API_KEY" = keep-me'
+        commands = 'source "$1"; source "$1"; cxg exec "two words"; cxd exec "duck prompt"; codex --version; claude -p "a prompt"; test "$OPENAI_API_KEY" = keep-me'
         result = subprocess.run(['bash', '-c', commands, 'test', str(self.rc)], env=env, text=True, capture_output=True, check=True)
         rows = [json.loads(line) for line in result.stdout.splitlines()]
         self.assertEqual(len(rows), 4)
-        self.assertIn('model_provider=openai', rows[0]['args'])
+        # codex 与 cxg 一样始终走订阅；cxd 走 DuckCoding，且共用同一个 CODEX_HOME。
+        for row in (rows[0], rows[2]):
+            self.assertEqual(row['args'][:4], ['-c', 'model_provider="openai"', '-c', 'forced_login_method="chatgpt"'])
         self.assertEqual(rows[0]['args'][-2:], ['exec', 'two words'])
+        self.assertEqual(rows[1]['args'][:2], ['-c', 'model_provider="duckcoding"'])
+        self.assertIn('base_url="https://api.duckcoding.ai/v1"', rows[1]['args'][3])
+        self.assertEqual(rows[1]['args'][4:], ['--model', 'gpt-5.6-sol', 'exec', 'duck prompt'])
         for row in rows[:3]:
             self.assertIsNone(row['openai'])
+            self.assertIsNone(row['home'])
             self.assertEqual(row['key'], key)
-        for row in rows[1:3]:
-            self.assertEqual(row['home'], str(self.root / '.config/ai-cli/codex-duckcoding'))
         self.assertEqual(rows[3]['args'], ['-p', 'a prompt'])
+        self.assertEqual(rows[3]['token'], 'test-claude')
         self.assertIsNone(rows[3]['conflict'])
-        self.configure()
-        self.assertEqual((self.root / '.config/ai-cli/provider').read_text(), 'duck\n')
         fail = subprocess.run(['bash', '-c', 'source "$1"; unset DUCKCODING_API_KEY; cxd', 'test', str(self.rc)], env=env, capture_output=True)
         self.assertEqual(fail.returncode, 1)
         self.assertFalse(fail.stdout)
@@ -117,7 +120,7 @@ class DeploymentTests(unittest.TestCase):
         command = (
             '. ' + quote(profile) + '; . ' + quote(profile) + '; '
             'cxg exec "two words"; cxd exec "duck prompt"; '
-            'codex-use duck 6>$null; codex --version; claude -p "a prompt"; '
+            'codex --version; claude -p "a prompt"; '
             'cxd --fail; if ($LASTEXITCODE -ne 7) { throw "Exit status lost" }; '
             'if ($env:OPENAI_API_KEY -ne "keep-me") { throw "Environment not restored" }; '
             'if ($env:CODEX_HOME -ne "original-home") { throw "Codex home not restored" }; '
@@ -127,11 +130,15 @@ class DeploymentTests(unittest.TestCase):
         rows = [json.loads(line) for line in result.stdout.splitlines()]
         self.assertEqual(len(rows), 5)
         self.assertEqual(rows[0]['args'][-2:], ['exec', 'two words'])
-        self.assertEqual(rows[0]['home'], 'original-home')
-        self.assertIn('model_provider=openai', rows[0]['args'])
-        for row in (rows[1], rows[2], rows[4]):
+        for row in (rows[0], rows[2]):
+            self.assertIn('model_provider=openai', row['args'])
+        for row in (rows[1], rows[4]):
             self.assertIn('model_provider=duckcoding', row['args'])
-            self.assertEqual(row['home'], str(self.root / '.config/ai-cli/codex-duckcoding'))
+            self.assertIn('model_providers.duckcoding.base_url=https://api.duckcoding.ai/v1', row['args'])
+            self.assertIn('gpt-5.6-sol', row['args'])
+        for row in rows:
+            self.assertEqual(row['home'], 'original-home')
+        for row in (rows[0], rows[1], rows[2], rows[4]):
             self.assertIsNone(row['openai'])
         self.assertEqual(rows[3]['args'], ['-p', 'a prompt'])
 
@@ -142,7 +149,8 @@ class DeploymentTests(unittest.TestCase):
             self.configure()
         self.assertEqual(self.rc.read_bytes(), original)
         self.settings.write_text('{}')
-        for kwargs in ({'codex_key': 'bad\nkey'}, {'codex_url': 'https://user:secret@example.org'}):
+        for kwargs in ({'codex_key': 'bad\nkey'}, {'codex_url': 'https://user:secret@example.org'},
+                       {'codex_url': "https://example.org/v1'\"x"}, {'claude_url': 'https://example.org/$(id)'}):
             with self.assertRaises(ValueError):
                 self.configure(**kwargs)
         self.assertEqual(self.rc.read_bytes(), original)
@@ -152,11 +160,14 @@ class DeploymentTests(unittest.TestCase):
 
     def test_custom_config_preserved(self):
         self.configure(codex_url='https://example.org/v1', claude_url='https://example.org', model='custom-model')
-        config = self.root / '.config/ai-cli/codex-duckcoding/config.toml'
-        text = config.read_text()
+        text = self.rc.read_text()
+        self.assertIn('base_url="https://example.org/v1"', text)
+        self.assertIn("export DUCKCODING_CODEX_MODEL='custom-model'", text)
         self.configure()
-        self.assertEqual(text, config.read_text())
-        self.assertNotIn('old-codex', text)
+        self.assertEqual(text, self.rc.read_text())
+        ps = self.configure(shell='powershell', codex_url='https://example.org/v1', model='custom-model')
+        self.configure(shell='powershell')
+        self.assertIn('model_providers.duckcoding.base_url=https://example.org/v1', deploy.read_text(ps))
 
     def test_rollback(self):
         original = self.rc.read_bytes()
@@ -172,14 +183,17 @@ class DeploymentTests(unittest.TestCase):
             with self.assertRaises(OSError):
                 self.configure()
         self.assertEqual(original, self.rc.read_bytes())
-        self.assertFalse((self.root / '.config/ai-cli/codex-duckcoding/config.toml').exists())
+        self.assertIn('old-claude', self.settings.read_text())
 
     @unittest.skipUnless(shutil.which('codex'), 'Codex CLI not installed')
     def test_real_codex_config_parser(self):
-        self.configure()
-        env = dict(os.environ, CODEX_HOME=str(self.root / '.config/ai-cli/codex-duckcoding'), DUCKCODING_API_KEY='fake-test-key')
-        result = subprocess.run([shutil.which('codex'), '-c', 'model_provider=duckcoding', 'features', 'list'], env=env, capture_output=True, text=True, timeout=30)
-        self.assertEqual(result.returncode, 0, result.stderr)
+        self.configure(codex_key='fake-test-key')
+        home = self.root / 'codex-home'
+        home.mkdir()
+        env = dict(os.environ, CODEX_HOME=str(home))
+        for command in ('cxd features list', 'cxg features list'):
+            result = subprocess.run(['bash', '-c', 'source "$1"; ' + command, 'test', str(self.rc)], env=env, capture_output=True, text=True, timeout=60)
+            self.assertEqual(result.returncode, 0, result.stderr)
 
 
 if __name__ == '__main__':

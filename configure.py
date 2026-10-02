@@ -51,6 +51,9 @@ def endpoint(value):
     parsed = urlparse(value)
     if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
         raise ValueError('API 地址必须是无账号、查询参数或片段的 HTTPS URL。')
+    # 地址会直接写进 shell 函数和 TOML 字符串，禁止引号、反斜杠和空白。
+    if re.search(r'''['"\\\s`$]''', value):
+        raise ValueError('API 地址不能包含引号、反斜杠、空白、` 或 $。')
     return value
 
 
@@ -84,23 +87,21 @@ def prepare(root, shell, profile, codex_key=None, claude_key=None,
         return safe_line(getpass.getpass(label + '（留空保留，未配置则稍后填写）: ') or saved)
     codex_key = key_value(codex_key, saved_codex, 'DuckCoding Codex API key')
     claude_key = key_value(claude_key, saved_claude, 'DuckCoding Claude API key')
-    deploy = root / '.config/ai-cli'
-    config = deploy / 'codex-duckcoding/config.toml'
-    previous_config = read_text(config)
-    def previous(name, fallback):
-        match = re.search(r'^' + name + r'\s*=\s*(".*")\s*$', previous_config, re.M)
-        return json.loads(match[1]) if match else fallback
-    codex_url = endpoint(codex_url or previous('base_url', 'https://api.duckcoding.ai/v1'))
+    blocks = ''.join(m[0] for m in BLOCK.finditer(old))
+    previous_url = re.search(r'model_providers\.duckcoding.*?base_url="?(https://[^"\'\s,}]+)', blocks)
+    codex_url = endpoint(codex_url or (previous_url[1] if previous_url else 'https://api.duckcoding.ai/v1'))
     claude_url = endpoint(claude_url or literal(old, 'ANTHROPIC_BASE_URL', shell) or 'https://api.duckcoding.ai')
-    model = safe_line(model or previous('model', 'gpt-5.6-sol'))
+    model = safe_line(model or literal(old, 'DUCKCODING_CODEX_MODEL', shell) or 'gpt-5.6-sol')
     values = {'DUCKCODING_API_KEY': codex_key, 'ANTHROPIC_AUTH_TOKEN': claude_key,
-              'ANTHROPIC_BASE_URL': claude_url, 'AI_CLI_DIR': str(deploy)}
+              'ANTHROPIC_BASE_URL': claude_url, 'DUCKCODING_CODEX_MODEL': model}
     if shell == 'bash':
-        assignments = '\n'.join('export ' + k + '=' + shlex.quote(v) for k, v in values.items())
+        # 与原 .bashrc 写法一致：key 用 shlex 引用，地址和模型始终加单引号。
+        quote = lambda k, v: shlex.quote(v) if k.endswith(('_KEY', '_TOKEN')) else "'" + v.replace("'", "'\\''") + "'"
+        assignments = '\n'.join('export ' + k + '=' + quote(k, v) for k, v in values.items())
     else:
         assignments = '\n'.join('$env:' + k + " = '" + v.replace("'", "''") + "'" for k, v in values.items())
     template = read_text(PACKAGE / 'templates' / ('bash.sh' if shell == 'bash' else 'powershell.ps1'))
-    content = template.replace('@@EXPORTS@@', assignments)
+    content = template.replace('@@EXPORTS@@', assignments).replace('@@CODEX_URL@@', codex_url)
     updated = BLOCK.sub('', old).rstrip('\n') + '\n\n' + START + '\n' + content.rstrip('\n') + '\n' + END + '\n'
     if shell == 'bash':
         subprocess.run(['bash', '-n'], input=updated, text=True, check=True, capture_output=True)
@@ -112,23 +113,15 @@ def prepare(root, shell, profile, codex_key=None, claude_key=None,
                          'if ($errors.Count) { exit 1 }')
         subprocess.run(['pwsh', '-NoProfile', '-NonInteractive', '-Command', parse_command],
                        input=updated, text=True, check=True, capture_output=True)
-    # TOML string quoting is compatible with JSON for these single-line values.
-    toml = ('# Managed by ai-cli-deploy. No API keys in this file.\n'
-            'model_provider = "duckcoding"\nmodel = ' + json.dumps(model, ensure_ascii=False) + '\n'
-            '[model_providers.duckcoding]\nname = "DuckCoding"\nbase_url = ' + json.dumps(codex_url) + '\n'
-            'wire_api = "responses"\nenv_key = "DUCKCODING_API_KEY"\nrequires_openai_auth = false\n')
     # Profile keys are the source of authentication, retaining all unrelated settings.
     cleaned = json.loads(json.dumps(data))
     for name in ('ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL', 'CLAUDE_CODE_OAUTH_TOKEN'):
         cleaned.get('env', {}).pop(name, None)
     if 'env' in cleaned and not cleaned['env']:
         del cleaned['env']
-    plan = [(config, toml, 'utf-8'), (profile, updated, 'utf-8-sig' if shell == 'powershell' else 'utf-8')]
+    plan = [(profile, updated, 'utf-8-sig' if shell == 'powershell' else 'utf-8')]
     if cleaned != data:
         plan.append((settings, json.dumps(cleaned, ensure_ascii=False, indent=2) + '\n', 'utf-8'))
-    state = deploy / 'provider'
-    if not state.exists():
-        plan.append((state, 'gpt\n', 'utf-8'))
     # Preserve the legacy path for any old source statements, but retire its secret.
     if legacy.exists() and literal(read_text(legacy), 'DUCKCODING_API_KEY', 'bash'):
         plan.append((legacy, '# API key 已迁移到 shell 启动配置的 AI CLI 区块。\n', 'utf-8'))
@@ -202,8 +195,8 @@ def main():
         install()
     commit(plan)
     print('\n配置完成。Linux：source ~/.bashrc；PowerShell：. $PROFILE')
-    print('先执行 ai-status 检查密钥是否已填写。订阅首次登录：cxg login')
-    print('切换：codex-use gpt / codex-use duck；临时启动：cxg / cxd；Claude：claude')
+    print('先执行 ai-status 检查密钥是否已填写。订阅首次登录：codex login')
+    print('codex / cxg：ChatGPT 订阅；cxd：DuckCoding；claude：DuckCoding 的 Claude Code')
     print('备份包含历史配置，可能包含旧密钥，请保存在个人目录。')
 
 

@@ -35,7 +35,7 @@ function Test-Command($name, [string[]]$probe) {
 
 function Install-WingetPackage($id, $label) {
     if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-        throw "未找到 winget，请手动安装 $label 后重试（或从 Microsoft Store 安装“应用安装程序”）。"
+        throw "未找到 winget，请手动安装 $label 后重试（或从 Microsoft Store 安装 App Installer（应用安装程序）。"
     }
     Say "安装 $label（winget: $id）"
     winget install --id $id -e --source winget --accept-package-agreements --accept-source-agreements --silent
