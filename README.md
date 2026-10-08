@@ -189,13 +189,21 @@ python3 -m unittest discover -s tests -v
 
 已在 Linux + PowerShell 7.6 下全部通过。Windows 原生安装、浏览器登录和 DuckCoding 真实请求需要在目标机器上验收。
 
-## 参考
+## 致谢与许可
+
+<a id="参考"></a>
+
+### 致谢与参考项目
+
+- Codex 与 Claude Code 是本项目部署和配置的外部工具，本仓库提供安装脚本与启动配置，不是这两个工具的实现或官方发行版。
+
+以下官方文档用于认证、配置及环境变量的接口对照：
 
 - [Codex 认证](https://learn.chatgpt.com/docs/auth)
 - [Codex 配置参考](https://learn.chatgpt.com/docs/config-file/config-reference)
 - [Claude Code 安装](https://code.claude.com/docs/en/setup)
 - [Claude Code 环境变量](https://code.claude.com/docs/en/env-vars)
 
-## 许可
+### 许可
 
 [MIT License](LICENSE)
