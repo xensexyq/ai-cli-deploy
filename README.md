@@ -1,4 +1,16 @@
-# Codex（ChatGPT 订阅 / DuckCoding）与 Claude Code 一键部署
+<a id="codexchatgpt-订阅--duckcoding与-claude-code-一键部署"></a>
+
+<div align="center">
+
+# ai-cli-deploy
+
+**Linux / Windows 的 Codex 与 Claude Code 命令行部署工具**
+
+[特性](#特性) · [安装](#安装) · [快速开始](#快速开始) · [恢复](#备份与恢复) · [测试](#测试)
+
+</div>
+
+## 特性
 
 一条命令在新电脑（Linux / Windows）上装好 **Codex** 与 **Claude Code**，并配置好下列快捷命令：
 
@@ -11,6 +23,26 @@
 | `ai-status` | 只检查本地配置：key 是否已填写、模型、接口地址（不联网、不显示密钥） |
 
 切换方式就是**换一个命令启动**：想用订阅就 `codex` / `codexgpt`，想用 DuckCoding 就 `codexduck`，互不影响，也不需要改任何配置文件。两种方式共用同一个 Codex 目录（`~/.codex`），会话历史、技能、项目信任设置都是共享的。
+
+## 工作原理
+
+- `codex` / `codexgpt`：在子进程中清除 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`CODEX_API_KEY`，并以 `-c model_provider="openai" -c forced_login_method="chatgpt"` 启动，确保走订阅登录。
+- `codexduck`：同样清除上述变量，通过 `-c` 完整指定 `duckcoding` provider（地址、`wire_api = "responses"`、`env_key = "DUCKCODING_API_KEY"`、`requires_openai_auth = false`）并带上 `--model`，不依赖 `~/.codex/config.toml` 中的任何配置。
+- `claude`：启动配置中导出 `ANTHROPIC_AUTH_TOKEN` 与 `ANTHROPIC_BASE_URL`，并清除冲突的 `ANTHROPIC_API_KEY`，`claude` 直接调用原程序。
+- 只修改当前 shell 函数所启动的子进程环境，不影响当前终端；IDE 插件和桌面应用不经过这些函数。
+
+## 安装
+
+支持 Linux / WSL Bash，以及原生 Windows PowerShell；Windows 安装后使用 PowerShell 7。安装器可能下载软件、修改当前用户的 Shell 配置并保存认证信息，应先阅读[备份与恢复](#备份与恢复)。
+
+想先检查源码，可克隆后使用[本地安装入口](#已克隆仓库时)：
+
+```bash
+git clone https://github.com/xensexyq/ai-cli-deploy.git
+cd ai-cli-deploy
+```
+
+一键安装方法见下方。账号登录、订阅与第三方 API 权限需要自行准备，不包含在仓库中。
 
 ## 快速开始
 
@@ -55,6 +87,22 @@ claude             # Claude Code
 ```
 
 参数会原样传递，例如 `codexduck exec "检查当前修改"`、`claude -p "只回复 OK"`。
+
+## 项目结构
+
+```text
+install.sh / install.ps1               远程安装入口
+setup-linux.sh / setup-windows.ps1     平台环境准备
+configure.py                          Shell 配置与认证迁移
+templates/                            快捷命令模板
+tests/                                隔离配置与命令路由测试
+```
+
+## 文档
+
+[本地安装与参数](#已克隆仓库时) · [修改配置](#修改-key-或模型) · [备份恢复](#备份与恢复) · [常见问题](#常见问题)
+
+本项目管理 CLI 启动方式，不等同于桌面端 provider 切换；现有规则和限制见[工作原理](#工作原理)。
 
 ## 已克隆仓库时
 
@@ -112,13 +160,6 @@ $env:DUCKCODING_CODEX_MODEL = 'gpt-5.6-sol'
 
 Linux 执行 `source ~/.bashrc`，Windows 执行 `. $PROFILE`。临时换模型可用 `codexduck --model 模型名`。
 
-## 工作原理
-
-- `codex` / `codexgpt`：在子进程中清除 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`CODEX_API_KEY`，并以 `-c model_provider="openai" -c forced_login_method="chatgpt"` 启动，确保走订阅登录。
-- `codexduck`：同样清除上述变量，通过 `-c` 完整指定 `duckcoding` provider（地址、`wire_api = "responses"`、`env_key = "DUCKCODING_API_KEY"`、`requires_openai_auth = false`）并带上 `--model`，不依赖 `~/.codex/config.toml` 中的任何配置。
-- `claude`：启动配置中导出 `ANTHROPIC_AUTH_TOKEN` 与 `ANTHROPIC_BASE_URL`，并清除冲突的 `ANTHROPIC_API_KEY`，`claude` 直接调用原程序。
-- 只修改当前 shell 函数所启动的子进程环境，不影响当前终端；IDE 插件和桌面应用不经过这些函数。
-
 ## 备份与恢复
 
 每次实际修改文件前，都会在原位置生成 `文件名.bak.时间戳` 备份（Linux 权限 `600`）。备份可能含有旧密钥，不要上传或共享。写入中途失败会自动回滚。
@@ -157,4 +198,4 @@ python3 -m unittest discover -s tests -v
 
 ## 许可
 
-MIT
+[MIT License](LICENSE)
