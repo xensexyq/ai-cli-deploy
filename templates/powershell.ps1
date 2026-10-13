@@ -34,7 +34,7 @@ function Invoke-AiCliNative {
 }
 
 function codexgpt {
-    Invoke-AiCliNative -Program codex -CliArgs (@('-c','model_provider=openai','-c','forced_login_method=chatgpt') + $args) -Overrides @{
+    Invoke-AiCliNative -Program codex -CliArgs (@('-c','model_provider=openai','-c','forced_login_method=chatgpt','--model','gpt-6.1-sol','-c','model_reasoning_effort=high') + $args) -Overrides @{
         OPENAI_API_KEY=$null; OPENAI_BASE_URL=$null; CODEX_API_KEY=$null
     }
 }
@@ -43,7 +43,7 @@ function codexgpt {
 # Windows 的 codex.cmd 会破坏参数中的双引号，因此逐项用不带引号的 -c 写法。
 function codexduck {
     if (-not $env:DUCKCODING_API_KEY) { throw '请在 $PROFILE 设置 DUCKCODING_API_KEY，然后执行 . $PROFILE。' }
-    $model = if ($env:DUCKCODING_CODEX_MODEL) { $env:DUCKCODING_CODEX_MODEL } else { 'gpt-5.6-sol' }
+    $model = if ($env:DUCKCODING_CODEX_MODEL) { $env:DUCKCODING_CODEX_MODEL } else { 'gpt-6.1-sol' }
     $provider = @(
         '-c','model_provider=duckcoding',
         '-c','model_providers.duckcoding.name=DuckCoding',
@@ -51,7 +51,8 @@ function codexduck {
         '-c','model_providers.duckcoding.wire_api=responses',
         '-c','model_providers.duckcoding.env_key=DUCKCODING_API_KEY',
         '-c','model_providers.duckcoding.requires_openai_auth=false',
-        '--model',$model
+        '--model',$model,
+        '-c','model_reasoning_effort=high'
     )
     Invoke-AiCliNative -Program codex -CliArgs ($provider + $args) -Overrides @{
         OPENAI_API_KEY=$null; OPENAI_BASE_URL=$null; CODEX_API_KEY=$null
@@ -65,6 +66,6 @@ function codex { codexgpt @args }
 function ai-status {
     Write-Host ('Codex DuckCoding key：' + $(if ($env:DUCKCODING_API_KEY) { '已配置' } else { '未配置' }))
     Write-Host ('Claude key：' + $(if ($env:ANTHROPIC_AUTH_TOKEN) { '已配置' } else { '未配置' }))
-    Write-Host ('DuckCoding Codex 模型：' + $(if ($env:DUCKCODING_CODEX_MODEL) { $env:DUCKCODING_CODEX_MODEL } else { 'gpt-5.6-sol' }))
+    Write-Host ('DuckCoding Codex 模型：' + $(if ($env:DUCKCODING_CODEX_MODEL) { $env:DUCKCODING_CODEX_MODEL } else { 'gpt-6.1-sol' }))
     Write-Host ('Claude 接口：' + $(if ($env:ANTHROPIC_BASE_URL) { $env:ANTHROPIC_BASE_URL } else { '未配置' }))
 }

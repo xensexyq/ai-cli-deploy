@@ -54,6 +54,10 @@ class DeploymentTests(unittest.TestCase):
         self.configure()
         self.assertEqual(text, self.rc.read_text())
         self.assertEqual(self.auth.read_text(), '{"test":"unchanged"}')
+        import tomllib
+        config = tomllib.loads((self.root / '.codex/config.toml').read_text())
+        self.assertEqual(config['model'], 'gpt-6.1-sol')
+        self.assertEqual(config['model_reasoning_effort'], 'high')
         self.assertEqual(self.rc.stat().st_mode & 0o777, 0o600)
 
     def test_shell_routing_and_arguments(self):
@@ -77,7 +81,7 @@ class DeploymentTests(unittest.TestCase):
         self.assertEqual(rows[0]['args'][-2:], ['exec', 'two words'])
         self.assertEqual(rows[1]['args'][:2], ['-c', 'model_provider="duckcoding"'])
         self.assertIn('base_url="https://api.duckcoding.ai/v1"', rows[1]['args'][3])
-        self.assertEqual(rows[1]['args'][4:], ['--model', 'gpt-5.6-sol', 'exec', 'duck prompt'])
+        self.assertEqual(rows[1]['args'][4:], ['--model', 'gpt-6.1-sol', '-c', 'model_reasoning_effort=high', 'exec', 'duck prompt'])
         for row in rows[:3]:
             self.assertIsNone(row['openai'])
             self.assertIsNone(row['home'])
@@ -138,7 +142,7 @@ class DeploymentTests(unittest.TestCase):
         for row in (rows[1], rows[4]):
             self.assertIn('model_provider=duckcoding', row['args'])
             self.assertIn('model_providers.duckcoding.base_url=https://api.duckcoding.ai/v1', row['args'])
-            self.assertIn('gpt-5.6-sol', row['args'])
+            self.assertIn('gpt-6.1-sol', row['args'])
         for row in rows:
             self.assertEqual(row['home'], 'original-home')
         for row in (rows[0], rows[1], rows[2], rows[4]):

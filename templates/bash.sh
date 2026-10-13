@@ -11,7 +11,7 @@ unset -f codex codexgpt codexduck cxg cxd claude codex-use ai-status 2>/dev/null
 codexgpt() (
     unset OPENAI_API_KEY OPENAI_BASE_URL CODEX_API_KEY
     command codex -c 'model_provider="openai"' \
-        -c 'forced_login_method="chatgpt"' "$@"
+        -c 'forced_login_method="chatgpt"' --model gpt-6.1-sol -c model_reasoning_effort=high "$@"
 )
 
 # 完整指定 provider，不依赖不存在的 profile 或未加载的配置文件。
@@ -23,7 +23,7 @@ codexduck() (
     unset OPENAI_API_KEY OPENAI_BASE_URL CODEX_API_KEY
     command codex -c 'model_provider="duckcoding"' \
         -c 'model_providers.duckcoding={name="DuckCoding",base_url="@@CODEX_URL@@",wire_api="responses",env_key="DUCKCODING_API_KEY",requires_openai_auth=false}' \
-        --model "${DUCKCODING_CODEX_MODEL:-gpt-5.6-sol}" "$@"
+        --model "${DUCKCODING_CODEX_MODEL:-gpt-6.1-sol}" -c model_reasoning_effort=high "$@"
 )
 
 # codex 默认使用订阅。
@@ -33,6 +33,6 @@ codex() { codexgpt "$@"; }
 ai-status() {
     [[ -n "${DUCKCODING_API_KEY:-}" ]] && echo 'Codex DuckCoding key：已配置' || echo 'Codex DuckCoding key：未配置'
     [[ -n "${ANTHROPIC_AUTH_TOKEN:-}" ]] && echo 'Claude key：已配置' || echo 'Claude key：未配置'
-    echo "DuckCoding Codex 模型：${DUCKCODING_CODEX_MODEL:-gpt-5.6-sol}"
+    echo "DuckCoding Codex 模型：${DUCKCODING_CODEX_MODEL:-gpt-6.1-sol}"
     echo "Claude 接口：${ANTHROPIC_BASE_URL:-未配置}"
 }

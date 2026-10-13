@@ -12,13 +12,15 @@
 
 ## 特性
 
+Codex 默认模型为 `gpt-6.1-sol`，推理强度为 `high`，适用于订阅和 DuckCoding 启动。部署会合并本机 `~/.codex/config.toml` 的这两个字段。
+
 一条命令在新电脑（Linux / Windows）上装好 **Codex** 与 **Claude Code**，并配置好下列快捷命令：
 
 | 命令 | 作用 |
 | --- | --- |
 | `codex` | Codex，使用 **ChatGPT 订阅**（浏览器登录） |
 | `codexgpt` | 同上，ChatGPT 订阅 |
-| `codexduck` | Codex，使用 **DuckCoding API**（模型由 `DUCKCODING_CODEX_MODEL` 决定，默认 `gpt-5.6-sol`） |
+| `codexduck` | Codex，使用 **DuckCoding API**（模型由 `DUCKCODING_CODEX_MODEL` 决定，默认 `gpt-6.1-sol`） |
 | `claude` | Claude Code，使用 DuckCoding 的 Claude 接口 |
 | `ai-status` | 只检查本地配置：key 是否已填写、模型、接口地址（不联网、不显示密钥） |
 
@@ -124,7 +126,7 @@ bash setup-linux.sh            # Linux
 | `--non-interactive` | `-NonInteractive` | 不提示输入 key，沿用已有值或当前环境变量 |
 | `--codex-base-url URL` | `-CodexBaseUrl URL` | DuckCoding Codex 接口，默认 `https://api.duckcoding.ai/v1` |
 | `--claude-base-url URL` | `-ClaudeBaseUrl URL` | DuckCoding Claude 接口，默认 `https://api.duckcoding.ai` |
-| `--codex-model 名称` | `-CodexModel 名称` | `codexduck` 默认模型，默认 `gpt-5.6-sol` |
+| `--codex-model 名称` | `-CodexModel 名称` | `codexduck` 默认模型，默认 `gpt-6.1-sol` |
 
 远程一键安装同样支持这些参数：
 
@@ -147,7 +149,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/xensexyq/ai-cli-deploy/main/
 export DUCKCODING_API_KEY=你的 Codex key
 export ANTHROPIC_AUTH_TOKEN=你的 Claude key
 export ANTHROPIC_BASE_URL='https://api.duckcoding.ai'
-export DUCKCODING_CODEX_MODEL='gpt-5.6-sol'
+export DUCKCODING_CODEX_MODEL='gpt-6.1-sol'
 ```
 
 ```powershell
@@ -155,7 +157,7 @@ export DUCKCODING_CODEX_MODEL='gpt-5.6-sol'
 $env:DUCKCODING_API_KEY = '你的 Codex key'
 $env:ANTHROPIC_AUTH_TOKEN = '你的 Claude key'
 $env:ANTHROPIC_BASE_URL = 'https://api.duckcoding.ai'
-$env:DUCKCODING_CODEX_MODEL = 'gpt-5.6-sol'
+$env:DUCKCODING_CODEX_MODEL = 'gpt-6.1-sol'
 ```
 
 Linux 执行 `source ~/.bashrc`，Windows 执行 `. $PROFILE`。临时换模型可用 `codexduck --model 模型名`。

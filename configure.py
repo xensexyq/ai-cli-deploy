@@ -91,7 +91,7 @@ def prepare(root, shell, profile, codex_key=None, claude_key=None,
     previous_url = re.search(r'model_providers\.duckcoding.*?base_url="?(https://[^"\'\s,}]+)', blocks)
     codex_url = endpoint(codex_url or (previous_url[1] if previous_url else 'https://api.duckcoding.ai/v1'))
     claude_url = endpoint(claude_url or literal(old, 'ANTHROPIC_BASE_URL', shell) or 'https://api.duckcoding.ai')
-    model = safe_line(model or literal(old, 'DUCKCODING_CODEX_MODEL', shell) or 'gpt-5.6-sol')
+    model = safe_line(model or literal(old, 'DUCKCODING_CODEX_MODEL', shell) or 'gpt-6.1-sol')
     values = {'DUCKCODING_API_KEY': codex_key, 'ANTHROPIC_AUTH_TOKEN': claude_key,
               'ANTHROPIC_BASE_URL': claude_url, 'DUCKCODING_CODEX_MODEL': model}
     if shell == 'bash':
@@ -120,6 +120,14 @@ def prepare(root, shell, profile, codex_key=None, claude_key=None,
     if 'env' in cleaned and not cleaned['env']:
         del cleaned['env']
     plan = [(profile, updated, 'utf-8-sig' if shell == 'powershell' else 'utf-8')]
+    config = root / '.codex/config.toml'
+    existing = read_text(config)
+    head, sep, tail = existing.partition('[')
+    for name, value in (('model', 'gpt-6.1-sol'), ('model_reasoning_effort', 'high')):
+        line = name + ' = "' + value + '"'
+        pattern = r'^' + name + r'\s*=.*$'
+        head = re.sub(pattern, line, head, flags=re.M) if re.search(pattern, head, re.M) else line + '\n' + head
+    plan.append((config, head + sep + tail, 'utf-8'))
     if cleaned != data:
         plan.append((settings, json.dumps(cleaned, ensure_ascii=False, indent=2) + '\n', 'utf-8'))
     # Preserve the legacy path for any old source statements, but retire its secret.
